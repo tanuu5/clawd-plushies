@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clawd plushies（非公式ファンメイド）</title>
+<meta name="description" content="Clawd のぬいぐるみをさわって集める、非公式のファンメイド Web アプリ。/plushies でランダムなぬいぐるみが届きます。">
+<meta name="theme-color" content="#EFEAE3">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 110'%3E%3Crect x='12' y='35' width='126' height='22' fill='%23D8622C'/%3E%3Crect x='32' y='8' width='86' height='66' fill='%23D8622C'/%3E%3Crect x='44' y='74' width='9' height='22' fill='%23D8622C'/%3E%3Crect x='60' y='74' width='9' height='22' fill='%23D8622C'/%3E%3Crect x='82' y='74' width='9' height='22' fill='%23D8622C'/%3E%3Crect x='98' y='74' width='9' height='22' fill='%23D8622C'/%3E%3Crect x='50' y='22' width='13' height='13' fill='%23141414'/%3E%3Crect x='88' y='22' width='13' height='13' fill='%23141414'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #EFEAE3;
+    --ink: #3A2A22;
+    --muted: #8A786C;
+    --term: #1F1B19;
+    --term-ink: #EEE6DC;
+    --term-dim: #9E9289;
+    --accent: #E2773F;
+    --ok: #F2B58D;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", "Noto Sans Mono CJK JP", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+  body { font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; -webkit-tap-highlight-color: transparent; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(110, 80, 60, 0.1) 100%); }
+
+  .brand { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 16px; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+  .brand svg { width: 30px; height: auto; }
+  .brand b { font: 600 15px/1 var(--mono); letter-spacing: 0.01em; }
+  .brand small { font-size: 11px; color: var(--muted); border: 1px solid rgba(138, 120, 108, 0.45); border-radius: 999px; padding: 3px 8px; }
+
+  .icon-btn { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; border-radius: 12px; border: 0; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; opacity: 0.75; }
+  .icon-btn:hover { opacity: 1; background: rgba(0, 0, 0, 0.05); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon-btn .off { display: none; }
+  .icon-btn[aria-pressed="false"] .on { display: none; }
+  .icon-btn[aria-pressed="false"] .off { display: block; }
+
+  .hint { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--muted); background: rgba(255, 255, 255, 0.55); border-radius: 999px; padding: 6px 12px; white-space: nowrap; pointer-events: none; transition: opacity 0.6s; }
+  .hint.gone { opacity: 0; }
+
+  .term { position: fixed; left: 50%; bottom: calc(34px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(580px, calc(100vw - 24px)); background: var(--term); color: var(--term-ink); border-radius: 14px; box-shadow: 0 18px 40px -18px rgba(60, 35, 20, 0.45), 0 2px 6px rgba(60, 35, 20, 0.12); font: 13px/1.6 var(--mono); overflow: hidden; }
+  .term-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px 0; color: var(--term-dim); font-size: 11px; }
+  .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: #3A3431; display: inline-block; }
+  .term-bar span { margin-left: 6px; }
+  .term-out { height: calc(6.4em + 8px); overflow-y: auto; padding: 6px 14px 2px; scrollbar-width: thin; scrollbar-color: #4a423d transparent; }
+  .ln { white-space: pre-wrap; word-break: break-word; }
+  .ln.cmd::before { content: "> "; color: var(--accent); }
+  .ln.cmd { color: #fff; }
+  .ln.dim { color: var(--term-dim); }
+  .ln.ok { color: var(--ok); }
+  .ln.err { color: #FF8C8C; }
+  .ln.spin { color: var(--accent); }
+  .linkish { all: unset; cursor: pointer; color: var(--term-ink); }
+  .linkish:hover, .linkish:focus-visible { color: var(--ok); text-decoration: underline; }
+  .term-in { display: flex; align-items: center; gap: 8px; padding: 6px 14px 4px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+  .term-in .prompt { color: var(--accent); }
+  .term-in input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: inherit; font-size: 16px; padding: 6px 0; outline: none; caret-color: var(--accent); }
+  .term-in input::placeholder { color: #6d625b; }
+  .chips { display: flex; gap: 6px; padding: 2px 12px 12px; flex-wrap: wrap; }
+  .chips button { font: 12px/1 var(--mono); color: var(--term-ink); background: #2C2623; border: 1px solid #3B3430; border-radius: 999px; padding: 7px 11px; cursor: pointer; }
+  .chips button:hover { border-color: var(--accent); color: #fff; }
+  .chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chips button.main { background: var(--accent); border-color: var(--accent); color: #1F1B19; font-weight: 700; }
+  .chips button.main:hover { filter: brightness(1.08); color: #1F1B19; }
+
+  .note { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(8px + env(safe-area-inset-bottom)); width: calc(100vw - 24px); margin: 0; text-align: center; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+
+  @media (max-width: 520px) {
+    .term { bottom: calc(44px + env(safe-area-inset-bottom)); }
+    .chips { gap: 5px; padding: 2px 10px 11px; }
+    .chips button { font-size: 11.5px; padding: 7px 9px; }
+  }
+  @media (min-width: 980px) {
+    .term { font-size: 13.5px; }
+  }
+
+  dialog { border: 0; border-radius: 16px; padding: 0; max-width: min(92vw, 820px); max-height: 92vh; background: #FBF8F3; color: var(--ink); box-shadow: 0 30px 80px -20px rgba(40, 20, 10, 0.5); }
+  dialog::backdrop { background: rgba(40, 28, 20, 0.45); }
+  .dlg { display: flex; flex-direction: column; max-height: 92vh; }
+  .dlg-img { overflow: auto; padding: 14px; }
+  .dlg-img img { display: block; width: 100%; height: auto; border-radius: 8px; }
+  .dlg-bar { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding: 10px 14px 14px; }
+  .dlg-bar p { margin: 0 auto 0 4px; font-size: 12px; color: var(--muted); }
+  .btn { font: 600 13px/1 system-ui, sans-serif; border-radius: 10px; padding: 10px 14px; border: 1px solid #D9CFC4; background: #fff; color: var(--ink); cursor: pointer; text-decoration: none; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #1F1B19; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="Clawd のぬいぐるみ。押すとへこみ、押したまま動かすとなでられ、背景をドラッグすると回せます。"></canvas>
+<div class="vignette"></div>
+
+<div class="brand">
+  <svg viewBox="0 0 150 110" aria-hidden="true"><rect x="12" y="35" width="126" height="22" fill="#D8622C"/><rect x="32" y="8" width="86" height="66" fill="#D8622C"/><rect x="44" y="74" width="9" height="22" fill="#D8622C"/><rect x="60" y="74" width="9" height="22" fill="#D8622C"/><rect x="82" y="74" width="9" height="22" fill="#D8622C"/><rect x="98" y="74" width="9" height="22" fill="#D8622C"/><rect x="50" y="22" width="13" height="13" fill="#141414"/><rect x="88" y="22" width="13" height="13" fill="#141414"/></svg>
+  <b>clawd plushies</b>
+  <small>非公式ファンメイド</small>
+</div>
+
+<button id="sound" class="icon-btn" type="button" aria-pressed="true" aria-label="効果音">
+  <svg class="on" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  <svg class="off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+</button>
+
+<div id="hint" class="hint">おす・なでる・まわす・ダブルタップでジャンプ</div>
+
+<section id="term" class="term" aria-label="ターミナル">
+  <div class="term-bar"><i></i><i></i><i></i><span>~/plushies</span></div>
+  <div id="out" class="term-out" role="log" aria-live="polite"></div>
+  <form id="form" class="term-in" autocomplete="off">
+    <span class="prompt" aria-hidden="true">&gt;</span>
+    <input id="cmd" type="text" enterkeyhint="send" spellcheck="false" autocapitalize="off" placeholder="/plushies" aria-label="コマンドを入力">
+  </form>
+  <div class="chips">
+    <button type="button" class="main" data-cmd="/plushies">/plushies</button>
+    <button type="button" data-cmd="/stickers">/stickers</button>
+    <button type="button" data-cmd="/collection">/collection</button>
+    <button type="button" data-cmd="/help">/help</button>
+  </div>
+</section>
+
+<p class="note">非公式のファンメイドです。Clawd は Anthropic（Claude Code）のマスコットで、本作は Anthropic とは関係ありません。</p>
+
+<dialog id="stickerDlg" aria-label="ステッカーシート">
+  <div class="dlg">
+    <div class="dlg-img"><img id="sheet" alt="集めたぬいぐるみのステッカーシート"></div>
+    <div class="dlg-bar">
+      <p>画像として保存できます（非公式ファンメイド）</p>
+      <button id="closeDlg" class="btn" type="button">とじる</button>
+      <a id="save" class="btn primary" download="clawd-stickers.png" href="#">画像を保存</a>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
